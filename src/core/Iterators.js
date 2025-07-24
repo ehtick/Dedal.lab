@@ -26,7 +26,7 @@ export class FromFaceToInnerEdges {
     }
 
     next () {
-        if(this._nextEdge != null) {
+        if(this._nextEdge !== null) {
             this._resultEdge = this._nextEdge;
             this._nextEdge = this._nextEdge.nextLeftEdge;
             if(this._nextEdge == this._fromFace.edge) this._nextEdge = null;
@@ -195,7 +195,7 @@ export class FromVertexToHoldingFaces {
     }
 
     next () {
-        if(this._nextEdge != null) do {
+        if( this._nextEdge !== null ) do {
             this._resultFace = this._nextEdge.leftFace;
             this._nextEdge = this._nextEdge.rotLeftEdge;
             if(this._nextEdge == this._fromVertex.edge) {
@@ -230,7 +230,7 @@ export class FromVertexToIncomingEdges {
     }
 
     next () {
-        if(this._nextEdge != null) {
+        if(this._nextEdge !== null) {
             this._resultEdge = this._nextEdge.oppositeEdge;
             do {
                 this._nextEdge = this._nextEdge.rotLeftEdge;
@@ -267,11 +267,13 @@ export class FromVertexToOutgoingEdges {
     }
 
     next() {
-        if(this._nextEdge != null) {
+        if(this._nextEdge !== null) {
             this._resultEdge = this._nextEdge;
             do {
                 this._nextEdge = this._nextEdge.rotLeftEdge;
-                if(this._nextEdge == this._fromVertex.edge) {
+                if(this._nextEdge === null) break;
+                else if(this._nextEdge.id === this._fromVertex.edge.id) {
+                //if(this._nextEdge == this._fromVertex.edge) {
                     this._nextEdge = null;
                     break;
                 }

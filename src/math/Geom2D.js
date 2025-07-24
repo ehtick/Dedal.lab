@@ -191,6 +191,9 @@ export const Geom2D = {
 
     Orient2d: function ( p1, p2, p3 ) {
 
+
+        if(!p1 || !p2 || !p3) return 0
+
         let val = (p1.x - p3.x) * (p2.y - p3.y) - (p1.y - p3.y) * (p2.x - p3.x);
         if (val > -EPSILON_SQUARED && val < EPSILON_SQUARED) return 0;// collinear
         else if (val > 0) return -1;// ccw
@@ -211,6 +214,7 @@ export const Geom2D = {
         let result = { type: NULL };
 
         if(polygon === null) return result;
+        if(polygon.edge === null) return result;
 
         let e1_2 = polygon.edge;
         let e2_3 = e1_2.nextLeftEdge;
@@ -357,7 +361,7 @@ export const Geom2D = {
 
     intersections2segments: function ( s1p1, s1p2, s2p1, s2p2, posIntersection, paramIntersection, infiniteLineMode ) {
 
-        if(infiniteLineMode == null) infiniteLineMode = false;
+        if(infiniteLineMode === null) infiniteLineMode = false;
         let t1 = 0;
         let t2 = 0;
         let result;
@@ -387,7 +391,7 @@ export const Geom2D = {
 
     intersections2edges: function ( edge1, edge2, posIntersection, paramIntersection, infiniteLineMode ) {
 
-        if(infiniteLineMode == null) infiniteLineMode = false;
+        if(infiniteLineMode === null) infiniteLineMode = false;
         return Geom2D.intersections2segments( edge1.originVertex.pos, edge1.destinationVertex.pos, edge2.originVertex.pos, edge2.destinationVertex.pos, posIntersection,paramIntersection,infiniteLineMode);
 
     },

@@ -18,30 +18,41 @@ export class Edge {
     }
 
     get destinationVertex () {
+        if( !this.oppositeEdge ) return null
         return this.oppositeEdge.originVertex
     }
 
     get nextRightEdge () {
+        if( !this.oppositeEdge ) return null
+        if( !this.oppositeEdge.nextLeftEdge ) return null
+        if( !this.oppositeEdge.nextLeftEdge.nextLeftEdge ) return null
         return this.oppositeEdge.nextLeftEdge.nextLeftEdge.oppositeEdge
     }
 
     get prevRightEdge () {
+        if( !this.oppositeEdge ) return null
+        if( !this.oppositeEdge.nextLeftEdge ) return null
         return this.oppositeEdge.nextLeftEdge.oppositeEdge
     }
 
     get prevLeftEdge () {
+        if( !this.nextLeftEdge ) return null
         return this.nextLeftEdge.nextLeftEdge
     }
 
     get rotLeftEdge () {
+        if(!this.nextLeftEdge) return null
+        if(!this.nextLeftEdge.nextLeftEdge) return null
         return this.nextLeftEdge.nextLeftEdge.oppositeEdge
     }
 
     get rotRightEdge () {
+        if( !this.oppositeEdge ) return null
         return this.oppositeEdge.nextLeftEdge
     }
 
     get rightFace () {
+        if( !this.oppositeEdge ) return null
         return this.oppositeEdge.leftFace
     }
 
@@ -63,6 +74,9 @@ export class Edge {
     }
 
     addFromConstraintSegment ( segment ) {
+
+
+        //if( !segment ) return
 
         if ( this.fromConstraintSegments.indexOf(segment) === -1 ) this.fromConstraintSegments.push(segment);
 

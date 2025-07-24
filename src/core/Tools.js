@@ -8,7 +8,7 @@ export const nearEqual = ( a, b, e ) => ( Math.abs( a - b ) < e )
 export const fix = ( x, n ) => ( x.toFixed(n || 3) * 1 )
 export const Squared = ( a, b ) => ( a * a + b * b )
 export const Integral = ( x ) => ( Math.floor(x) )
-
+export const Clamp = ( x, min, max ) => ( Math.max( min, Math.min( max, value ) ) )
 //export const ARRAY = (typeof Float32Array !== 'undefined') ? Float32Array : Array;
 
 // IMAGE DATA

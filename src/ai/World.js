@@ -9,7 +9,7 @@ import { Entity } from '../ai/Entity.js'
 //https://github.com/hxDaedalus/hxDaedalus/tree/master/src/hxDaedalus
 
 export class World {
-
+      
     constructor ( w = 512, h = 512 ) {
 
         IDX.reset()
@@ -27,6 +27,8 @@ export class World {
         this.pathFinder = new PathFinder()
         this.pathFinder.mesh = this.mesh
 
+        this.isReset = false 
+
     }
 
     getMesh() {
@@ -36,6 +38,8 @@ export class World {
     }
 
     update() {
+
+        if( this.isReset ) return
 
         let lng = this.heroes.length
 
@@ -62,8 +66,21 @@ export class World {
 
     updateMesh() {
 
-       this.mesh.updateObjects()
+        // try readd objects
+        if( this.isReset ){
+            this.isReset = false
+            let i = this.objects.length, n = 0
 
+            while(i--){
+                this.objects[n]._constraintShape = null
+                this.mesh.insertObject(this.objects[n])
+                n++
+            }
+        }
+
+        let up = this.mesh.updateObjects()
+        // update failure so reset to basic square
+        if( !up ) this.reset()
     }
 
     updateAll() {
@@ -111,6 +128,7 @@ export class World {
         if(h) this.h = h;
         this.mesh = new RectMesh( this.w, this.h );
         this.pathFinder.mesh = this.mesh;
+        this.isReset = true
     
     }
 

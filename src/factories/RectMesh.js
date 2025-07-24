@@ -36,7 +36,7 @@ export class RectMesh extends Mesh2D {
 
         }
 
-        const boundShape = new Shape()   
+        const boundShape = new Shape()
         const offset = 10;
 
         v[0].pos.set(0 - offset, 0 - offset);
@@ -99,13 +99,6 @@ export class RectMesh extends Mesh2D {
         this._faces = f;
 
         this.build()
-
-        /*
-        this._constraintShapes.push( his.boundShape );
-        this.clipping = false;
-        this.insertConstraintShape( [ 0,0,w,0,  w,0,w,h,  w,h,0,h,  0,h,0,0 ] );
-        this.clipping = true;
-        */
 
     }
 

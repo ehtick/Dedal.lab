@@ -92,9 +92,9 @@ export class Object2D {
 
     dispose () {
 
-        this._matrix = null;
+        /*this._matrix = null;
         this._coordinates = null;
-        this._constraintShape = null;
+        this._constraintShape = null;*/
 
     }
 

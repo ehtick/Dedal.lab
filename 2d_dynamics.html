@@ -20,7 +20,7 @@
 
     let world, view, stats;
     const size = 512
-    const max = 50
+    const max = 100
     const num = 10
 
     init();
@@ -37,18 +37,18 @@
 
         //var segment = world.mesh.insertConstraintSegment(70,300,530,320);
 
-        /*
+        
         let i = num;
         while(i--){
-            world.addObject({x:DDLS.rand(50,size-100), y:DDLS.rand(50,size-100), w:DDLS.rand(4,max), h:DDLS.rand(4,max)})
+            world.addObject({x:DDLS.rand(50,size-100), y:DDLS.rand(50,size-100), w:DDLS.rand(4,max), h:DDLS.rand(4,max), r:DDLS.rand(-20,20)})
         }
-        */
+        
 
         
         // bug test
-        world.addObject({x:256, y:256, w:60, h:60, r:90})
+        /*world.addObject({x:256, y:256, w:60, h:60, r:90})
         world.addObject({x:256-120, y:256, w:60, h:60, r:90})
-        world.addObject({x:256+120, y:256, w:60, h:60, r:90})
+        world.addObject({x:256+120, y:256, w:60, h:60, r:90})*/
         
 
 
@@ -85,16 +85,16 @@
 
         view.drawMesh( world.mesh, true );
 
-        world.update();
+        world.update()
 
-        view.clear();
+        view.clear()
 
         i = world.heroes.length, h;
         while(i--){
 
             h = world.heroes[i];
-            view.drawPath( h.tmppath );
-            view.drawEntity( h );
+            view.drawPath( h.tmppath )
+            view.drawEntity( h )
 
         }
 

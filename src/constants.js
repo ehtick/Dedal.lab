@@ -11,7 +11,9 @@ export const TTIER = 0.3333333333333333;
 export const torad = Math.PI / 180;
 export const todeg = 180 / Math.PI;
 export const EPSILON_NORMAL = 0.01;
-export const EPSILON_SQUARED = 0.0001;
+//export const EPSILON_NORMAL = 0.001;
+//export const EPSILON_NORMAL = 0.0001;
+export const EPSILON_SQUARED = Math.pow(EPSILON_NORMAL, 2)//0.001;
 export const INFINITY = Infinity;
 export const TwoPI = Math.PI * 2;
 

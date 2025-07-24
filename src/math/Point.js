@@ -16,8 +16,10 @@ export class Point {
     }
 
     transform( matrix ) {
-
-        matrix.tranform( this )
+        //matrix.tranform( this )
+        let x = this.x, y = this.y
+        this.x = matrix.transformX( x, y )
+        this.y = matrix.transformY( x, y )
         return this
 
     }
@@ -100,9 +102,20 @@ export class Point {
 
     normalize() {
 
-        const norm = this.length()
-        this.x /= norm
-        this.y /= norm
+        return this.divideScalar( this.length() || 1 );
+
+    }
+
+    divideScalar( scalar ) {
+
+        return this.multiplyScalar( 1 / scalar );
+
+    }
+
+    multiplyScalar( scalar ) {
+
+        this.x *= scalar;
+        this.y *= scalar;
         return this;
 
     }

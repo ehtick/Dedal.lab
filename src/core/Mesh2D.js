@@ -3,7 +3,7 @@ import { Matrix2D } from '../math/Matrix2D.js';
 import { Geom2D } from '../math/Geom2D.js';
 
 import { IDX, Dictionary, Log, INFINITY, EPSILON_SQUARED } from '../constants.js';
-import { Squared } from '../core/Tools.js';
+import { Squared, Clamp, rand } from '../core/Tools.js';
 
 import { FromVertexToOutgoingEdges, FromMeshToVertices, FromVertexToIncomingEdges } from '../core/Iterators.js';
 import { Shape } from '../core/Shape.js';
@@ -17,33 +17,30 @@ export class Mesh2D {
     constructor ( width, height ) {
 
         this.id = IDX.get('mesh2D');
-        this.__objectsUpdateInProgress = false;
+        this.updateInProgress = false;
+
+        this.avoid = false
         
-        this.width = width;
-        this.height = height;
+        this.width = width || 10;
+        this.height = height || 10;
         this.clipping = true;
         
         this._edges = [];
         this._faces = [];
         this._objects = [];
         this._vertices = [];
-        this._constraintShapes = [];
-        //this.__constraintShapes = []; // ??
-        this.constraintShape = null;
+        this._constraintShapes = []
+        this.constraintShape = null
 
         this.__edgesToCheck = [];
-        this.__centerVertex = null;
+        this.__centerVertex = null
 
-        this.AR_vertex = null;
-        this.AR_edge = null;
+        this.AR_vertex = null
+        this.AR_edge = null
 
-        this.isRedraw = true;
+        this.isRedraw = true
 
     }
-
-    /*get __constraintShapes(){
-        return _constraintShapes
-    }*/
 
     deDuplicEdge () {
 
@@ -130,6 +127,8 @@ export class Mesh2D {
 
         if( o.constraintShape !== null ) this.deleteObject( o );
 
+        //this.avoid = false
+
         let shape = new Shape()
         let segment;
         let coordinates = o.coordinates;
@@ -142,22 +141,23 @@ export class Mesh2D {
         let l = coordinates.length, i = 0;
         //while(i < l) {
         for (i=0; i<l; i+=4){
-            p1.set( coordinates[i], coordinates[i+1] ).transformMat2D(m);
-            p2.set( coordinates[i+2], coordinates[i+3] ).transformMat2D(m);
+            p1.set( coordinates[i], coordinates[i+1] ).transformMat2D(m)
+            p2.set( coordinates[i+2], coordinates[i+3] ).transformMat2D(m)
             segment = this.insertConstraintSegment( p1.x, p1.y, p2.x, p2.y );
-            if(segment != null) {
+            if( segment !== null ) {
                 segment.fromShape = shape;
                 shape.segments.push(segment);
             }
             //i += 4;
         }
 
-        this._constraintShapes.push( shape );
-        o.constraintShape = shape
+        if(!this.avoid){
+            this._constraintShapes.push( shape );
+            o.constraintShape = shape
+        }
+        
 
-        if( !this.__objectsUpdateInProgress ) this._objects.push( o );
-
-        //console.log(this._objects.length)
+        if( !this.updateInProgress ) this._objects.push( o )
 
     }
 
@@ -168,16 +168,35 @@ export class Mesh2D {
         this.deleteConstraintShape( o.constraintShape );
         o.constraintShape = null;
         //o._constraintShape = null
-        if(!this.__objectsUpdateInProgress) {
+        if(!this.updateInProgress) {
             let index = this._objects.indexOf( o );
             this._objects.splice( index, 1 );
         }
 
     }
 
+    reset () {
+
+        //this.updateInProgress = true
+
+        this.clear( true )
+        if( this.build ) this.build()
+
+        /*let i = this._objects.length, n = 0, ob
+        while(i--){
+            ob = this._objects[n];
+            ob.build()
+            //ob._constraintShape = null
+            this.insertObject(ob)
+            n++
+        }*/
+        //this.updateInProgress = false
+
+    }
+
     updateAll () {
 
-        //this.__objectsUpdateInProgress = true
+        //this.updateInProgress = true
 
         this.clear( true )
 
@@ -189,32 +208,42 @@ export class Mesh2D {
             this.insertObject(ob)
             n++
         }
-        //this.__objectsUpdateInProgress = false
+        //this.updateInProgress = false
 
     }
 
     updateObjects () {
 
-        this.__objectsUpdateInProgress = true
+
+        this.avoid = false
+        
+        this.updateInProgress = true
         let i = this._objects.length, n = 0, ob
 
         //this._objects[0].hasChanged = true
 
         while( i-- ) {
 
+           // if( this.avoid ) break
+            
             ob = this._objects[n];
 
             if( ob.hasChanged ) {
                 this.deleteObject( ob )
                 this.insertObject( ob )
+                if( this.avoid ) break
                 ob.hasChanged = false
                 //this.isRedraw = true
             }
             n++
         }
-        this.__objectsUpdateInProgress = false
+        this.updateInProgress = false
 
-        //console.log('updated')
+        return !this.avoid 
+
+       // if(this.avoid) this.reset()
+
+        //console.log(this.avoid)
 
     }
 
@@ -232,7 +261,7 @@ export class Mesh2D {
 
         while( i < l ) {
             segment = this.insertConstraintSegment( coordinates[i], coordinates[i + 1], coordinates[i + 2], coordinates[i + 3] );
-            if(segment != null) {
+            if(segment !== null) {
                 segment.fromShape = shape;
                 shape.segments.push(segment);
             }
@@ -245,6 +274,8 @@ export class Mesh2D {
 
     deleteConstraintShape ( shape ) {
 
+        if( shape.segments === null ) return
+
         let i = shape.segments.length, n=0;
         while( i-- ) {
             this.deleteConstraintSegment(shape.segments[n]);
@@ -255,59 +286,77 @@ export class Mesh2D {
         //console.log('yoch', this._constraintShapes.indexOf(shape))
         this._constraintShapes.splice(this._constraintShapes.indexOf(shape),1);
         
-
     }
 
     insertConstraintSegment ( x1, y1, x2, y2 ) {
+
+        ///https://github.com/totologic/daedalus-lib/blob/master/DDLS/data/DDLSMesh.as
 
         let newX1 = x1;
         let newY1 = y1;
         let newX2 = x2;
         let newY2 = y2;
 
+        let tx1, tx2, ty1, ty2, nx = 0, ny = 0, tmin, tmax 
+
         if ( (x1 > this.width && x2 > this.width) || (x1 < 0 && x2 < 0) || (y1 > this.height && y2 > this.height) || (y1 < 0 && y2 < 0)  ) return null;
-        else{
-            let nx = x2 - x1;
-            let ny = y2 - y1;
-            let tmin = - INFINITY;
-            let tmax = INFINITY;
+  
+
+        nx = x2 - x1
+        ny = y2 - y1
+        tmin = - INFINITY
+        tmax = INFINITY
+
+        //if( nx === undefined ) return null;
+        //if( ny === undefined ) return null;
+
+        //if( isNaN(nx) || isNaN(ny) ) return null;
+
+        if (nx !== 0.0){
+        //if (!ny){
+            //tx1 = (0 - x1)/nx;
+            tx1 = -x1/nx;
+            tx2 = (this.width - x1)/nx;
             
-            if (nx != 0.0){
-                let tx1 = (0 - x1)/nx;
-                let tx2 = (this.width - x1)/nx;
-                
-                tmin = Math.max(tmin, Math.min(tx1, tx2));
-                tmax = Math.min(tmax, Math.max(tx1, tx2));
-            }
-            if (ny != 0.0){
-                let ty1 = (0 - y1)/ny;
-                let ty2 = (this.height - y1)/ny;
-                
-                tmin = Math.max(tmin, Math.min(ty1, ty2));
-                tmax = Math.min(tmax, Math.max(ty1, ty2));
-            }
-            if (tmax >= tmin){
-                if (tmax < 1){
-                    //Clip end point
-                    newX2 = nx*tmax + x1;
-                    newY2 = ny*tmax + y1;
-                }
-                if (tmin > 0){
-                    //Clip start point
-                    newX1 = nx*tmin + x1;
-                    newY1 = ny*tmin + y1;
-                }
-            }
-            else return null;
+            tmin = Math.max(tmin, Math.min(tx1, tx2));
+            tmax = Math.min(tmax, Math.max(tx1, tx2));
         }
+        if (ny !== 0.0){
+        //if (!ny){
+            //ty1 = (0 - y1)/ny;
+            ty1 = -y1/ny;
+            ty2 = (this.height - y1)/ny;
+            
+            tmin = Math.max(tmin, Math.min(ty1, ty2));
+            tmax = Math.min(tmax, Math.max(ty1, ty2));
+        }
+
+        //if( isNaN(tmax) || isNaN(tmin) ) return null;
+        //else if( tmax === INFINITY && tmin === -INFINITY  ) return null;
+        if (tmax >= tmin){
+        //if (tmax >= tmin){
+            if (tmax < 1){
+                //Clip end point
+                newX2 = nx*tmax + x1;
+                newY2 = ny*tmax + y1;
+            }
+            if (tmin > 0){
+                //Clip start point
+                newX1 = nx*tmin + x1;
+                newY1 = ny*tmin + y1;
+            }
+        }
+        else return null;
+     
+
 
         // we check the vertices insertions
         let vertexDown = this.insertVertex(newX1,newY1);
-        if(vertexDown == null) return null;
+        if(vertexDown === null) return null;
         let vertexUp = this.insertVertex(newX2,newY2);
-        if(vertexUp == null) return null;
+        if(vertexUp === null) return null;
         if(vertexDown.id === vertexUp.id) return null;
-        //if(vertexDown === vertexUp) return null;
+        if(vertexDown === vertexUp) return null;
 
         // useful
         let iterVertexToOutEdges = new FromVertexToOutgoingEdges();
@@ -316,9 +365,9 @@ export class Mesh2D {
         let i;
 
         // the new constraint segment
-        let segment = new Segment();
-        let tempEdgeDownUp = new Edge();
-        let tempSdgeUpDown = new Edge();
+        let segment = new Segment()
+        let tempEdgeDownUp = new Edge()
+        let tempSdgeUpDown = new Edge()
         tempEdgeDownUp.setDatas(vertexDown,tempSdgeUpDown,null,null,true,true);
         tempSdgeUpDown.setDatas(vertexUp,tempEdgeDownUp,null,null,true,true);
 
@@ -326,23 +375,50 @@ export class Mesh2D {
         let leftBoundingEdges = [];
         let rightBoundingEdges = [];
 
-        let currObjet = {type:3};
+        let currObjet// = {type:3};
         let pIntersect = new Point();
         let edgeLeft;
         let newEdgeDownUp;
         let newEdgeUpDown;
         let done = false;
-        currVertex = vertexDown;
 
+        let segId = segment.id
+
+        currVertex = vertexDown;
         currObjet = currVertex;
-        //currObjet = currVertex;
+
+
+        //
+
+        let n = 0
+
         while( true ) {
-            done = false;
+
+            n++
+
+            done = false
+
+            // skip infinie loop 
+            if(n>66) {
+
+                Log("BREAK !! MESH infine loop !!");
+                //debugger
+                this.avoid = true 
+                return null;
+                break;
+            }
+
+
+
             if ( currObjet.type === 0 ){ // VERTEX
-                currVertex = currObjet;
-                iterVertexToOutEdges.fromVertex = currVertex;
-                while((currEdge = iterVertexToOutEdges.next()) != null) {
+
+                currVertex = currObjet
+                iterVertexToOutEdges.fromVertex = currVertex
+
+                while((currEdge = iterVertexToOutEdges.next()) !== null) {
                     //if(currEdge.destinationVertex == vertexUp) {
+
+                    // if we meet directly the end vertex
                     if(currEdge.destinationVertex.id === vertexUp.id) {
                         if(!currEdge.isConstrained) {
                             currEdge.isConstrained = true;
@@ -354,7 +430,10 @@ export class Mesh2D {
                         vertexUp.addFromConstraintSegment(segment);
                         segment.addEdge(currEdge);
                         return segment;
+                        //break;
                     }
+
+                    // if we meet a vertex
                     if( Geom2D.distanceSquaredVertexToEdge(currEdge.destinationVertex,tempEdgeDownUp) <= EPSILON_SQUARED) {
                         if(!currEdge.isConstrained) {
                             currEdge.isConstrained = true;
@@ -371,16 +450,20 @@ export class Mesh2D {
                         break;
                     }
                 }
+
                 if( done ) continue;
 
+                
+
                 iterVertexToOutEdges.fromVertex = currVertex;
-                while((currEdge = iterVertexToOutEdges.next()) != null) {
+                //while((currEdge = iterVertexToOutEdges.next()) !== null) {
+                while( currEdge = iterVertexToOutEdges.next() ) {
                     currEdge = currEdge.nextLeftEdge;
                     if( Geom2D.intersections2edges(currEdge,tempEdgeDownUp,pIntersect)) {
                         if(currEdge.isConstrained) {
                             vertexDown = this.splitEdge(currEdge,pIntersect.x,pIntersect.y);
                             iterVertexToOutEdges.fromVertex = currVertex;
-                            while((currEdge = iterVertexToOutEdges.next()) != null){
+                            while((currEdge = iterVertexToOutEdges.next()) !== null){
                                 //if(currEdge.destinationVertex == vertexDown) {
                                 if(currEdge.destinationVertex.id === vertexDown.id) {
                                     currEdge.isConstrained = true;
@@ -450,7 +533,7 @@ export class Mesh2D {
                             currVertex = this.splitEdge(edgeLeft, pIntersect.x, pIntersect.y);
                             
                             iterVertexToOutEdges.fromVertex = currVertex;
-                            while ( (currEdge = iterVertexToOutEdges.next()) != null){
+                            while ( (currEdge = iterVertexToOutEdges.next()) !== null){
                                 if (currEdge.destinationVertex == leftBoundingEdges[0].originVertex) leftBoundingEdges.unshift(currEdge);
                                 if (currEdge.destinationVertex == rightBoundingEdges[rightBoundingEdges.length-1].destinationVertex) rightBoundingEdges.push(currEdge.oppositeEdge);
                             }
@@ -491,7 +574,7 @@ export class Mesh2D {
                                 if (currEdge.destinationVertex == rightBoundingEdges[rightBoundingEdges.length-1].destinationVertex) rightBoundingEdges.push(currEdge.oppositeEdge);
                             }*/
 
-                            while ( (currEdge = iterVertexToOutEdges.next()) != null ){
+                            while ( (currEdge = iterVertexToOutEdges.next()) !== null ){
                                 if (currEdge.destinationVertex.id === leftBoundingEdges[0].originVertex.id) leftBoundingEdges.unshift(currEdge);
                                 if (currEdge.destinationVertex.id === rightBoundingEdges[rightBoundingEdges.length-1].destinationVertex.id) rightBoundingEdges.push(currEdge.oppositeEdge);
                             }
@@ -522,11 +605,10 @@ export class Mesh2D {
                 }
             } else {
                 Log( 'not finding') 
+                done = true
                 return null;
             }
         }
-
-        //return segment;
 
     }
 
@@ -547,6 +629,8 @@ export class Mesh2D {
     }
 
     deleteConstraintSegment ( segment ) {
+
+        if( segment === null ) return
 
         let vertexToDelete = [];
         let edge = null;
@@ -603,8 +687,11 @@ export class Mesh2D {
     insertVertex ( x, y ) {
 
         if(x < 0 || y < 0 || x > this.width || y > this.height) return null;
+        if( isNaN(x) || isNaN(y) ) return null;
+
         this.__edgesToCheck.splice(0,this.__edgesToCheck.length);
         let inObject = Geom2D.locatePosition( new Point(x,y), this);
+        if( !inObject ) return null;
         let newVertex = null;
         switch(inObject.type) {
         case 0:
@@ -942,7 +1029,7 @@ export class Mesh2D {
         iterEdges.realEdgesOnly = false;
         let edge;
         let outgoingEdges = [];
-        freeOfConstraint = (vertex.fromConstraintSegments.length == 0)? true : false;
+        freeOfConstraint = vertex.fromConstraintSegments.length === 0 ? true : false;
 
         let bound = [];
         let realA = false;
@@ -969,7 +1056,7 @@ export class Mesh2D {
             // we check the count of adjacent constrained edges
             let count = 0;
             //while(edge = iterEdges.next()) {
-            while((edge = iterEdges.next()) != null) {
+            while((edge = iterEdges.next()) !== null) {
                 outgoingEdges.push(edge);
                 if(edge.isConstrained) {
                     count++;
@@ -1105,6 +1192,10 @@ export class Mesh2D {
     // - bounds is the list of edges in CCW bounding the surface to retriangulate,
     triangulate ( bound, isReal ) {
 
+        //console.log('tri')
+
+        if( this.avoid ) return;
+
         if(bound.length < 2) {
             Log("BREAK ! the hole has less than 2 edges");
             return;
@@ -1144,7 +1235,7 @@ export class Mesh2D {
             while(_g1 < _g) {
                 let i1 = _g1++;
                 vertexC = bound[i1].originVertex;
-                if(Geom2D.getRelativePosition2(vertexC.pos,baseEdge) == 1) {
+                if( Geom2D.getRelativePosition2(vertexC.pos,baseEdge) === 1 ) {
                     index = i1;
                     isDelaunay = true;
                     //DDLS.Geom2D.getCircumcenter(vertexA.pos.x,vertexA.pos.y,vertexB.pos.x,vertexB.pos.y,vertexC.pos.x,vertexC.pos.y,circumcenter);
@@ -1159,7 +1250,7 @@ export class Mesh2D {
                         if(j != i1) {
                             vertexCheck = bound[j].originVertex;
                             distanceSquared = Squared(vertexCheck.pos.x - circumcenter.x, vertexCheck.pos.y - circumcenter.y);
-                            if(distanceSquared < radiusSquared) {
+                            if( distanceSquared < radiusSquared ) {
                                 isDelaunay = false;
                                 break;
                             }
@@ -1183,6 +1274,7 @@ export class Mesh2D {
                     s += bound[i2].destinationVertex.pos.y + " , ";
                 }*/
                 index = 2;
+
             }
 
             let edgeA, edgeAopp, edgeB, edgeBopp, boundA, boundB, boundM = [];
